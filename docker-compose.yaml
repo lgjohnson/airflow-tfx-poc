@@ -4,3 +4,5 @@ services:
     build: ./airflow/
     image: tfx_airflow
     env_file: ./airflow/.env
+    ports:
+      - 8080:8080

@@ -26,6 +26,7 @@ DAGS_DIR = os.environ['DAGS_DIR']           # directory for pipeline code
 DATA_DIR = os.environ['DATA_DIR']           # directory for input data
 METADATA_DIR = os.environ['METADATA_DIR']   # directory for metadata
 PLUGINS_DIR = os.environ['PLUGINS_DIR']     # directory for plugins
+LOGS_DIR = os.environ['LOGS_DIR']           # directory for logs
 SERVING_DIR = os.environ['SERVING_DIR']     # directory to output models
 
 # Model Code Files
@@ -40,11 +41,11 @@ MODEL_MODULE_FILE = os.environ['MODEL_MODULE_FILE']          # model train code
     enable_cache=True,
     additional_pipeline_args={
         'logger_args': logging_utils.LoggerConfig(
-            log_root='/var/tmp/tfx/logs', 
+            log_root=LOGS_DIR,
             log_level=logging.INFO
         )
     },
-    metadata_db_root=os.path.join(HOME_DIR, 'data/tfx/metadata'),
+    metadata_db_root=METADATA_DIR,
     pipeline_root=DAGS_DIR
 )
 def create_pipeline():
