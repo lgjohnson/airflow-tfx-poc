@@ -12,11 +12,18 @@ RUN export SLUGIFY_USES_TEXT_UNIDECODE=yes && \
     pip install -r /tmp/requirements.txt
 
 # create directories for pipeline code
-RUN mkdir -p "${AIRFLOW_HOME}/dags" \
-    "${AIRFLOW_HOME}/data/${PIPELINE_NAME}" \ 
-    "${AIRFLOW_HOME}/plugins/${PIPELINE_NAME}"
 
-#pipeline code must live in airflow dags folder
-COPY ./pipeline.py "${AIRFLOW_HOME}/dags"
+ENV DAGS_DIR "${AIRFLOW_HOME}/dags"
+ENV DATA_DIR "${AIRFLOW_HOME}/data/${PIPELINE_NAME}"
+ENV PLUGINS_DIR = "${AIRFLOW_HOME}/plugins/${PIPELINE_NAME}"
+ENV SERVING_DIR = "${AIRFLOW_HOME}/models/${PIPELINE_NAME}"
+
+RUN mkdir -p ${DAGS_DIR} ${DATA_DIR} ${PLUGINS_DIR}
+
+# copy pipeline code into airflow dags folder
+COPY ./pipeline.py $DAGS_DIR
+
+# copy example csv into data directory
+COPY ./example.csv $DATA_DIR
 
 ENTRYPOINT airflow webserver -p 8080 & airflow scheduler
