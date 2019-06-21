@@ -5,7 +5,7 @@ ENV PIPELINE_NAME tfx_example_pipeline
 
 # Install Python packages inc. Airflow
 # set SLUGIFY_USES_TEXT_UNIDECODE to avoid airflow GPL version: https://www.tensorflow.org/tfx/guide
-ENV AIRFLOW_HOME = "/airflow_tfx"
+ENV AIRFLOW_HOME "/airflow_tfx"
 COPY ./requirements.txt /tmp/requirements.txt
 RUN export SLUGIFY_USES_TEXT_UNIDECODE=yes && \
     pip install -r /tmp/requirements.txt
@@ -14,12 +14,12 @@ RUN export SLUGIFY_USES_TEXT_UNIDECODE=yes && \
 ENV DAGS_DIR "${AIRFLOW_HOME}/dags"
 ENV DATA_DIR "${AIRFLOW_HOME}/data/${PIPELINE_NAME}/simple"
 ENV METADATA_DIR "${AIRFLOW_HOME}/data/${PIPELINE_NAME}/metadata"
-ENV PLUGINS_DIR = "${AIRFLOW_HOME}/plugins/${PIPELINE_NAME}"
+ENV PLUGINS_DIR "${AIRFLOW_HOME}/plugins/${PIPELINE_NAME}"
 ENV LOGS_DIR "/var/tmp/tfx/logs"
-ENV SERVING_DIR = "${AIRFLOW_HOME}/models/${PIPELINE_NAME}"
+ENV SERVING_DIR "${AIRFLOW_HOME}/models/${PIPELINE_NAME}"
 
-ENV MODULES_DIR = "${AIRFLOW_HOME}/tfx/modules"
-ENV TRANSFORM_MODULE_FILE = "${MODULES_DIR}/transform.py"
+ENV MODULES_DIR "${AIRFLOW_HOME}/tfx/modules"
+ENV TRANSFORM_MODULE_FILE "${MODULES_DIR}/transform.py"
 ENV MODEL_MODULE_FILE "${MODULES_DIR}/model.py"
 
 RUN mkdir -p $DAGS_DIR \
