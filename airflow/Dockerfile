@@ -37,7 +37,7 @@ COPY ./pipeline.py $DAGS_DIR
 COPY ./transform.py ./model.py $MODULES_DIR/
 
 # copy example csv into data directory
-COPY ./example.csv $DATA_DIR
+COPY ./iris.csv $DATA_DIR
 
 WORKDIR /airflow_tfx/
 
@@ -46,5 +46,5 @@ EXPOSE 8080
 # run airflow webserver in background and start scheduler
 ENTRYPOINT airflow initdb && \
     airflow webserver -p 8080 & \
-    sleep 5s && \
+    sleep 10s && \
     airflow scheduler

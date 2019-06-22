@@ -1,9 +1,6 @@
 import os
 import datetime
 import logging
-from airflow import PipelineDecorator
-
-from tfx import logging_utils
 from tfx.components.evaluator.component import Evaluator
 from tfx.components.example_gen.csv_example_gen.component import CsvExampleGen
 from tfx.components.example_validator.component import ExampleValidator
@@ -13,7 +10,9 @@ from tfx.components.schema_gen.component import SchemaGen
 from tfx.components.statistics_gen.component import StatisticsGen
 from tfx.components.trainer.component import Trainer
 from tfx.components.transform.component import Transform
-from tfx.orchestration.tfx_runner import TfxRunner
+from tfx.orchestration import pipeline
+from tfx.orchestration.airflow.airflow_runner import AirflowDAGRunner
+from tfx.proto import trainer_pb2, pusher_pb2
 from tfx.utils.dsl_utils import csv_input
 
 # Airflow config parameters
@@ -33,29 +32,20 @@ SERVING_DIR = os.environ['SERVING_DIR']     # directory to output models
 TRANSFORM_MODULE_FILE = os.environ['TRANSFORM_MODULE_FILE']  # transform code
 MODEL_MODULE_FILE = os.environ['MODEL_MODULE_FILE']          # model train code
 
+AIRFLOW_CONFIG = {
+    'schedule_interval': None,
+    'start_date': datetime.datetime(2018, 1, 1)
+}
 
-@PipelineDecorator(
-    pipeline_name=PIPELINE_NAME,
-    schedule_interval=SCHEDULE_INTERVAL,
-    start_date=datetime.datetime(2018, 1, 1),
-    enable_cache=True,
-    additional_pipeline_args={
-        'logger_args': logging_utils.LoggerConfig(
-            log_root=LOGS_DIR,
-            log_level=logging.INFO
-        )
-    },
-    metadata_db_root=METADATA_DIR,
-    pipeline_root=DAGS_DIR
-)
+
 def create_pipeline():
 
     # Read data in; can split data here
     examples = csv_input(DATA_DIR)
-    example_gen = CsvExampleGen(input_data=examples)
+    example_gen = CsvExampleGen(input_base=examples, name='iris_example')
 
     # Generate feature statistics
-    statistics_gen = StatisticsGen(input_data=example_gen.outputs.output)
+    statistics_gen = StatisticsGen(input_data=example_gen.outputs.examples)
 
     # Infer schema for data
     infer_schema = SchemaGen(stats=statistics_gen.outputs.output)
@@ -68,7 +58,7 @@ def create_pipeline():
 
     # Performs feature engineering; emits a SavedModel that does preprocessing
     transform = Transform(
-        input_data=example_gen.outputs.output,
+        input_data=example_gen.outputs.examples,
         schema=infer_schema.outputs.output,
         module_file=TRANSFORM_MODULE_FILE
     )
@@ -79,20 +69,19 @@ def create_pipeline():
         transformed_examples=transform.outputs.transformed_examples,
         schema=infer_schema.outputs.output,
         transform_output=transform.outputs.transform_output,
-        train_steps=10000,
-        eval_steps=5000,
-        warm_starting=True
+        train_args=trainer_pb2.TrainArgs(num_steps=10000),
+        eval_args=trainer_pb2.EvalArgs(num_steps=5000)
     )
 
     # Evaluates the model on  different slices of the data (bias detection?!)
     model_analyzer = Evaluator(
-        examples=example_gen.outputs.output,
+        examples=example_gen.outputs.examples,
         model_exports=trainer.outputs.output
     )
 
     # Compares new model against a baseline; both models evaluated on a dataset
     model_validator = ModelValidator(
-        examples=example_gen.outputs.output,
+        examples=example_gen.outputs.examples,
         model=trainer.outputs.output
     )
 
@@ -100,12 +89,36 @@ def create_pipeline():
     pusher = Pusher(
         model_export=trainer.outputs.output,
         model_blessing=model_validator.outputs.blessing,
-        serving_model_dir=SERVING_DIR
+        push_destination=pusher_pb2.PushDestination(
+            filesystem=pusher_pb2.PushDestination.Filesystem(
+                base_directory=SERVING_DIR
+            )
+        )
     )
 
-    return [
-        example_gen, statistics_gen, infer_schema, validate_stats, transform,
-        trainer, model_analyzer, model_validator, pusher
-    ]
+    return pipeline.Pipeline(
+        pipeline_name=PIPELINE_NAME,
+        pipeline_root=DAGS_DIR,
+        components=[
+            example_gen,
+            statistics_gen,
+            infer_schema,
+            validate_stats,
+            transform,
+            trainer,
+            model_analyzer,
+            model_validator,
+            pusher
+        ],
+        enable_cache=True,
+        metadata_db_root=METADATA_DIR,
+        additional_pipeline_args={
+            'logger_args': {
+                'log_root': LOGS_DIR,
+                'log_level': logging.INFO
+            }
+        }
+    )
 
-pipeline = TfxRunner().run(create_pipeline())
+
+airflow_pipeline = AirflowDAGRunner(AIRFLOW_CONFIG).run(create_pipeline())
