@@ -19,8 +19,8 @@ ENV LOGS_DIR "/var/tmp/tfx/logs"
 ENV SERVING_DIR "${AIRFLOW_HOME}/models/${PIPELINE_NAME}"
 
 ENV MODULES_DIR "${AIRFLOW_HOME}/tfx/modules"
-ENV TRANSFORM_MODULE_FILE "${MODULES_DIR}/transform.py"
-ENV MODEL_MODULE_FILE "${MODULES_DIR}/model.py"
+ENV TRANSFORM_MODULE_FILE "${MODULES_DIR}/iris_utils.py"
+ENV MODEL_MODULE_FILE "${MODULES_DIR}/iris_utils.py"
 
 RUN mkdir -p $DAGS_DIR \
     $DATA_DIR \
@@ -34,7 +34,7 @@ RUN mkdir -p $DAGS_DIR \
 COPY ./pipeline.py $DAGS_DIR
 
 # copy model code into modules directory
-COPY ./transform.py ./model.py $MODULES_DIR/
+COPY ./iris_utils.py $MODULES_DIR/
 
 # copy example csv into data directory
 COPY ./iris.csv $DATA_DIR

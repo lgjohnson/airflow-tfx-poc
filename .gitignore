@@ -1,3 +1,5 @@
 *.env*
 .vscode
 *.csv
+tmp*
+*.DS_Store
