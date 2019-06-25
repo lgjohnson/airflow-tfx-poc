@@ -12,10 +12,11 @@ import tensorflow_model_analysis as tfma
 _DENSE_FLOAT_FEATURE_KEYS = [
     'sepal_length',
     'sepal_width',
-    'petal_length'
+    'petal_length',
+    'petal_width'
 ]
 
-_LABEL_KEY = 'petal_width'
+_LABEL_KEY = 'class'
 
 
 def _transformed_name(key):
@@ -32,10 +33,24 @@ def _get_raw_feature_spec(schema):
 
 
 def _gzip_reader_fn(filenames):
+    '''Utility that returns a record reader that reads gzip-ed files'''
     return tf.data.TFRecordDataset(
         filenames,
         compression_type='GZIP'
     )
+
+
+def _fill_in_missing(x):
+    '''Fills missing  values with '' or 0 and converts to a dense vector'''
+    default_value = ''  if x.dtype == tf.string else 0
+    return tf.squeeze(
+        tf.sparse.to_dense(
+            tf.SparseTensor(x.indices, x.values, [x.dense_shape[0],  1]),
+            default_value
+        ),
+        axis=1
+    )
+
 
 
 def preprocessing_fn(inputs):
@@ -48,7 +63,19 @@ def preprocessing_fn(inputs):
     '''
     outputs = {}
     for key in _DENSE_FLOAT_FEATURE_KEYS:
-        outputs[_transformed_name(key)] = tft.scale_to_z_score(key)
+        outputs[_transformed_name(key)] = tft.scale_to_z_score(
+            _fill_in_missing(
+                inputs[key]
+            )
+        )
+
+    outputs[_transformed_name(_LABEL_KEY)] = tf.cast(
+        _fill_in_missing(
+            inputs[_LABEL_KEY]
+        ),
+        tf.int64
+    )
+
     return outputs
 
 
@@ -67,7 +94,7 @@ def _build_estimator(config,  hidden_units=None, warm_start_from=None):
             - eval_input_receiver_fn
     '''
 
-    real_valued_columns =  [
+    real_valued_columns = [
         tf.feature_column.numeric_column(key, shape=())
         for key in _transformed_names(_DENSE_FLOAT_FEATURE_KEYS)
     ]
@@ -220,7 +247,7 @@ def trainer_fn(hparams, schema):
         save_checkpoints_steps=999, 
         keep_checkpoint_max=1
     )
-    run_config =  run_config.replace(model_dir=hparams.serving_model_dir)
+    run_config = run_config.replace(model_dir=hparams.serving_model_dir)
 
     estimator = _build_estimator(
         hidden_units=[
@@ -230,7 +257,6 @@ def trainer_fn(hparams, schema):
         config=run_config,
         warm_start_from=hparams.warm_start_from
     )
-
 
     receiver_fn = lambda: _eval_input_receiver_fn(tf_transform_output, schema)
 
