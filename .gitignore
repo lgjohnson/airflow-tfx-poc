@@ -1,6 +1,5 @@
 *.env*
 .vscode
-*.csv
 tmp*
 *.DS_Store
 __pycache__
