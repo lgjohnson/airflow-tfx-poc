@@ -123,7 +123,7 @@ def _example_serving_receiver_fn(tf_transform_output, schema):
     )
     serving_input_receiver = raw_input_fn()
 
-    transformed_features = tf.transform_output.transform_raw_features(
+    transformed_features = tf_transform_output.transform_raw_features(
         serving_input_receiver.features
     )
 
