@@ -1,4 +1,4 @@
 docker==4.0.2
 tensorflow==1.14.0
 tfx==0.13.0
-apache-airflow==1.10.3
+apache-airflow==2.6.0
